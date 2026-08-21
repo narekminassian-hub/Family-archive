@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Minassian Family Archive</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,700&family=IBM+Plex+Sans+Condensed:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0D1317;
+  --ink-2:#141D24;
+  --ink-3:#1C282F;
+  --rule:#2E3D47;
+  --rule-lit:#4A5F6D;
+  --bone:#E9E3D6;
+  --muted:#8FA0AC;
+  --apricot:#E4A24A;
+  --pom:#B03A34;
+  --card-w:104px;
+  --row-h:264px;
+  --display:"Fraunces",Georgia,serif;
+  --sans:"IBM Plex Sans Condensed","Helvetica Neue",Arial,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  background:var(--ink);color:var(--bone);
+  font-family:var(--sans);
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+:focus-visible{outline:2px solid var(--apricot);outline-offset:2px}
+
+/* ── top bar ───────────────────────────────────────────── */
+#bar{
+  position:fixed;top:0;left:0;right:0;z-index:40;
+  display:flex;align-items:center;gap:10px;
+  padding:10px 14px;
+  padding-top:max(10px,env(safe-area-inset-top));
+  background:linear-gradient(to bottom,rgba(13,19,23,.97),rgba(13,19,23,.82) 70%,transparent);
+}
+#brand{font-family:var(--display);font-weight:500;font-size:16px;letter-spacing:.01em;white-space:nowrap}
+#brand span{display:block;font-family:var(--sans);font-size:10px;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--muted);margin-top:1px}
+#searchwrap{position:relative;flex:1;min-width:0;max-width:340px;margin-left:auto}
+#search{
+  width:100%;background:var(--ink-2);border:1px solid var(--rule);
+  color:var(--bone);padding:8px 11px;border-radius:2px;font-size:14px;
+}
+#search::placeholder{color:var(--muted)}
+#results{
+  position:absolute;top:calc(100% + 5px);left:0;right:0;max-height:52vh;overflow:auto;
+  background:var(--ink-2);border:1px solid var(--rule);border-radius:2px;display:none;
+}
+#results.on{display:block}
+#results button{display:block;width:100%;text-align:left;padding:8px 11px;font-size:14px;
+  border-bottom:1px solid var(--ink-3)}
+#results button:hover,#results button:focus{background:var(--ink-3)}
+#results i{font-style:normal;color:var(--muted);font-size:12px;margin-left:6px}
+.tool{
+  border:1px solid var(--rule);padding:7px 10px;border-radius:2px;font-size:12px;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--muted);white-space:nowrap;
+}
+.tool:hover{color:var(--bone);border-color:var(--rule-lit)}
+.tool[aria-pressed="true"]{color:var(--ink);background:var(--apricot);border-color:var(--apricot)}
+#zoomers{display:flex;border:1px solid var(--rule);border-radius:2px}
+#zoomers button{padding:6px 11px;font-size:15px;color:var(--muted);line-height:1}
+#zoomers button:hover{color:var(--bone)}
+#zoomers button+button{border-left:1px solid var(--rule)}
+
+/* ── generation rail ───────────────────────────────────── */
+#rail{position:fixed;left:0;top:0;bottom:0;width:96px;z-index:20;pointer-events:none;overflow:hidden}
+#rail::after{content:"";position:absolute;inset:0;
+  background:linear-gradient(to right,var(--ink) 30%,transparent)}
+.gtick{position:absolute;left:12px;z-index:1;transform:translateY(-50%)}
+.gtick b{display:block;font-family:var(--mono);font-size:11px;color:var(--apricot);
+  letter-spacing:.06em;font-weight:500}
+.gtick s{display:block;text-decoration:none;font-size:9px;color:var(--muted);
+  letter-spacing:.05em;margin-top:2px}
+
+/* ── canvas ────────────────────────────────────────────── */
+#canvas{position:fixed;inset:0;width:100%;height:100%;touch-action:none;cursor:grab}
+#canvas.drag{cursor:grabbing}
+.band{fill:none;stroke:var(--rule);stroke-width:1;opacity:.3}
+.link{fill:none;stroke:var(--rule-lit);stroke-width:1.25;stroke-linecap:square}
+.link.marriage{stroke-dasharray:none}
+.link.far{stroke:var(--rule);stroke-dasharray:3 4}
+.card{cursor:pointer}
+.plate{fill:var(--ink-2);stroke:var(--rule-lit);stroke-width:1}
+.card.unknown .plate{stroke-dasharray:3 3;stroke:var(--rule)}
+.mono{font-family:var(--display);font-size:26px;font-weight:300;fill:#3E515E;
+  text-anchor:middle;dominant-baseline:central;user-select:none}
+.nm{font-family:var(--sans);font-size:11.5px;font-weight:500;fill:var(--bone);
+  text-anchor:middle;letter-spacing:.02em}
+.yr{font-family:var(--mono);font-size:9.5px;fill:var(--muted);text-anchor:middle}
+.card:hover .plate,.card:focus .plate{stroke:var(--apricot)}
+.card:hover .nm,.card:focus .nm{fill:var(--apricot)}
+.selfmark{fill:var(--pom)}
+
+/* lineage mode */
+#world.lineage .card:not(.lit){opacity:.13}
+#world.lineage .link:not(.lit){opacity:.09}
+#world.lineage .card.lit .plate{stroke:var(--apricot)}
+#world.lineage .link.lit{stroke:var(--apricot);stroke-width:1.75;opacity:1}
+.card.current .plate{stroke:var(--apricot);stroke-width:2.5}
+
+/* ── drawer ────────────────────────────────────────────── */
+#drawer{
+  position:fixed;top:0;right:0;bottom:0;width:400px;max-width:100%;z-index:50;
+  background:var(--ink-2);border-left:1px solid var(--rule);
+  transform:translateX(101%);transition:transform .28s cubic-bezier(.4,0,.2,1);
+  display:flex;flex-direction:column;
+}
+#drawer.open{transform:none}
+#dhead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;
+  padding:16px 18px 12px;border-bottom:1px solid var(--rule)}
+#dbody{overflow:auto;padding:18px;flex:1;overscroll-behavior:contain}
+#dname{font-family:var(--display);font-size:25px;font-weight:500;line-height:1.15;margin:0}
+#dalt{color:var(--muted);font-size:13px;margin-top:3px;font-style:italic}
+#dclose{font-size:22px;line-height:1;color:var(--muted);padding:2px 6px}
+#dclose:hover{color:var(--bone)}
+#dportrait{width:100%;aspect-ratio:4/5;background:var(--ink-3);border:1px solid var(--rule);
+  display:grid;place-items:center;margin-bottom:16px;overflow:hidden}
+#dportrait img{width:100%;height:100%;object-fit:cover}
+#dportrait span{font-family:var(--display);font-size:56px;font-weight:300;color:#3E515E}
+.sect{margin-bottom:18px}
+.sect h3{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);
+  margin:0 0 8px;font-weight:600}
+.kv{display:grid;grid-template-columns:88px 1fr;gap:5px 10px;font-size:14px}
+.kv dt{color:var(--muted);font-size:12px;padding-top:1px}
+.kv dd{margin:0;font-family:var(--mono);font-size:13px}
+.kv dd.txt{font-family:var(--sans);font-size:14px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--rule);padding:5px 9px;border-radius:2px;font-size:13px}
+.chip:hover{border-color:var(--apricot);color:var(--apricot)}
+.chip.flat{cursor:default;color:var(--muted)}
+.chip.flat:hover{border-color:var(--rule);color:var(--muted)}
+.note{font-size:13px;line-height:1.55;color:var(--muted)}
+#gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+#gallery img{width:100%;aspect-ratio:1;object-fit:cover;border:1px solid var(--rule)}
+.empty{border:1px dashed var(--rule);padding:14px;font-size:12.5px;color:var(--muted);
+  line-height:1.5}
+.empty code{font-family:var(--mono);color:var(--apricot);font-size:12px}
+#dfoot{border-top:1px solid var(--rule);padding:12px 18px;display:flex;gap:8px;flex-wrap:wrap}
+.field{margin-bottom:10px}
+.field label{display:block;font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:4px}
+.field input,.field textarea{width:100%;background:var(--ink-3);border:1px solid var(--rule);
+  color:var(--bone);padding:7px 9px;border-radius:2px;font:14px var(--sans)}
+.field textarea{min-height:88px;resize:vertical;line-height:1.5}
+
+/* ── index overlay ─────────────────────────────────────── */
+#index{position:fixed;inset:0;z-index:60;background:var(--ink);overflow:auto;display:none;
+  padding:78px 20px 40px}
+#index.open{display:block}
+#index h2{font-family:var(--display);font-weight:500;font-size:22px;margin:0 0 4px}
+.gengroup{margin-bottom:26px;max-width:900px}
+.gengroup h3{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--apricot);
+  border-bottom:1px solid var(--rule);padding-bottom:6px;margin:0 0 10px}
+.gengroup ul{list-style:none;margin:0;padding:0;column-width:210px;column-gap:22px}
+.gengroup li{break-inside:avoid;margin-bottom:2px}
+.gengroup button{font-size:14px;padding:3px 0;text-align:left;width:100%}
+.gengroup button:hover{color:var(--apricot)}
+.gengroup em{font-style:normal;font-family:var(--mono);font-size:11px;color:var(--muted);
+  margin-left:6px}
+
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(80px);
+  background:var(--apricot);color:var(--ink);padding:9px 16px;border-radius:2px;
+  font-size:13px;font-weight:600;z-index:80;transition:transform .25s;pointer-events:none}
+#toast.on{transform:translateX(-50%)}
+
+@media (max-width:720px){
+  #brand span{display:none}
+  #rail{width:64px}
+  .gtick{left:8px}
+  #drawer{top:auto;height:86vh;width:100%;border-left:none;border-top:1px solid var(--rule);
+    transform:translateY(101%);border-radius:8px 8px 0 0}
+  #drawer.open{transform:none}
+  .hide-sm{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  *{transition-duration:.01ms !important}
+}
+</style>
+</head>
+<body>
+
+<header id="bar">
+  <div id="brand">Minassian Archive<span>six generations</span></div>
+  <div id="searchwrap">
+    <input id="search" type="search" placeholder="Find a name…" autocomplete="off"
+           aria-label="Find a person" aria-expanded="false" aria-controls="results">
+    <div id="results" role="listbox"></div>
+  </div>
+  <button class="tool hide-sm" id="btn-lineage" aria-pressed="false">Lineage</button>
+  <button class="tool hide-sm" id="btn-index">Index</button>
+  <button class="tool" id="btn-fit">Fit</button>
+  <div id="zoomers" class="hide-sm">
+    <button id="btn-out" aria-label="Zoom out">−</button>
+    <button id="btn-in" aria-label="Zoom in">+</button>
+  </div>
+  <button class="tool" id="btn-save" style="display:none">Download data.js</button>
+</header>
+
+<div id="rail" aria-hidden="true"></div>
+<svg id="canvas"><g id="world"></g></svg>
+
+<aside id="drawer" role="dialog" aria-modal="false" aria-labelledby="dname">
+  <div id="dhead">
+    <div><h2 id="dname">—</h2><div id="dalt"></div></div>
+    <button id="dclose" aria-label="Close">×</button>
+  </div>
+  <div id="dbody"></div>
+  <div id="dfoot">
+    <button class="tool" id="btn-edit">Edit details</button>
+    <button class="tool" id="btn-lin2">Show lineage</button>
+  </div>
+</aside>
+
+<div id="index" role="dialog" aria-modal="true" aria-label="Index of everyone">
+  <h2>Index</h2>
+  <p class="note" style="margin:0 0 20px">Everyone on the chart, oldest generation first.</p>
+  <div id="indexbody"></div>
+</div>
+
+<div id="toast"></div>
+
+<script src="data.js"></script>
+<script>
+(function(){
+"use strict";
+const D = window.FAMILY;
+const P = D.persons, FAMS = D.families;
+const famById = {}; FAMS.forEach(f => famById[f.id] = f);
+
+/* ── relationship indexes ───────────────────────────────── */
+const parentFam = {}, asPartner = {};
+FAMS.forEach(f => {
+  f.children.forEach(c => parentFam[c] = f.id);
+  f.partners.forEach(x => { if (x) (asPartner[x] = asPartner[x] || []).push(f.id); });
+});
+const parentsOf = id => {
+  const f = famById[parentFam[id]];
+  return f ? f.partners.filter(Boolean) : [];
+};
+const childrenOf = id => (asPartner[id] || []).flatMap(fid => famById[fid].children);
+const partnersOf = id => (asPartner[id] || [])
+  .flatMap(fid => famById[fid].partners.filter(x => x && x !== id));
+const siblingsOf = id => {
+  const f = famById[parentFam[id]];
+  return f ? f.children.filter(c => c !== id) : [];
+};
+
+/* ── layout ─────────────────────────────────────────────── */
+const CARD_W = 104, PHOTO_H = 116, CARD_H = 152;
+const SLOT = 128, ROW = 264, CLUSTER_GAP = 96;
+const GENS = Object.values(P).map(p => p.gen);
+const MAXG = Math.max.apply(null, GENS), MING = Math.min.apply(null, GENS);
+const rowOf = g => MAXG - g;
+const yOf   = g => rowOf(g) * ROW;
+
+const X = {}, rowNext = {}, doneFam = new Set();
+function put(id, want){
+  const r = rowOf(P[id].gen), floor = rowNext[r] || 0;
+  const x = Math.max(want === undefined ? floor : want, floor);
+  X[id] = x; rowNext[r] = x + SLOT;
+  return x;
+}
+function canDescend(fid, viaChild){
+  return famById[fid].partners.every(
+    x => !x || x === viaChild || X[x] !== undefined || !parentFam[x]);
+}
+function layoutFamily(fid){
+  if (doneFam.has(fid)) return;
+  doneFam.add(fid);
+  const f = famById[fid], kidX = [];
+  const prow = rowOf(P[f.partners.find(Boolean)].gen);   // subtree starts here
+  for (let r = prow; r <= rowOf(MING); r++)
+    rowNext[r] = Math.max(rowNext[r] || 0, rowNext[prow] || 0);
+  f.children.forEach(c => {
+    if (X[c] === undefined){
+      const cf = (asPartner[c] || []).find(x => canDescend(x, c));
+      if (cf) layoutFamily(cf);
+      if (X[c] === undefined) put(c);
+    }
+    kidX.push(X[c]);
+  });
+  const both = f.partners.filter(Boolean);
+  const open = both.filter(x => X[x] === undefined);
+  if (kidX.length){
+    const centre = (Math.min.apply(null,kidX) + Math.max.apply(null,kidX)) / 2;
+    if (open.length === 2){
+      put(both[0], centre - SLOT/2);
+      put(both[1], X[both[0]] + SLOT);
+    } else if (open.length === 1){
+      const other = both.find(x => x !== open[0]);
+      put(open[0], other !== undefined && X[other] !== undefined
+            ? X[other] + SLOT : centre);
+    }
+  } else open.forEach(x => put(x));
+}
+/* branches that own cross-married people are laid out first */
+const ORDER = ["f-horomsim-sargis","f-varduhi-parents",
+               "f-gohar-arshak","f-paytsar-mesrop","f-samvel-anik",
+               "f-minas","f-mariam-khachik","f-varduhi-andranik",
+               "f-saran-khachik","f-anush-bardugh"];
+function frontier(){
+  const vals = Object.values(rowNext);
+  return vals.length ? Math.max.apply(null, vals) : 0;
+}
+function newCluster(){
+  const f = frontier() + CLUSTER_GAP;
+  for (let r = 0; r <= rowOf(MING); r++) rowNext[r] = Math.max(rowNext[r] || 0, f);
+}
+ORDER.forEach(fid => { if (famById[fid]){ newCluster(); layoutFamily(fid); } });
+FAMS.forEach(f => {
+  if (doneFam.has(f.id)) return;
+  if (f.partners.filter(Boolean).some(x => parentFam[x])) return;
+  newCluster(); layoutFamily(f.id);
+});
+FAMS.forEach(f => { if (!doneFam.has(f.id)) layoutFamily(f.id); });
+Object.keys(P).forEach(id => {
+  if (X[id] === undefined && !P[id].near){ newCluster(); put(id); }
+});
+Object.keys(P).forEach(id => {           // e.g. a brother with no recorded family
+  if (X[id] !== undefined || X[P[id].near] === undefined) return;
+  const r = rowOf(P[id].gen);
+  const taken = Object.keys(X).filter(o => rowOf(P[o].gen) === r).map(o => X[o]);
+  let x = X[P[id].near] + SLOT;
+  while (taken.some(t => Math.abs(t - x) < CARD_W + 16)) x += SLOT;
+  X[id] = x;
+});
+Object.keys(P).forEach(id => { if (X[id] === undefined){ newCluster(); put(id); } });
+
+/* ── build svg ──────────────────────────────────────────── */
+const NS = "http://www.w3.org/2000/svg";
+const world = document.getElementById("world");
+const canvas = document.getElementById("canvas");
+const el = (t, a) => { const n = document.createElementNS(NS,t);
+  for (const k in a) n.setAttribute(k, a[k]); return n; };
+
+const gLinks = el("g",{}), gCards = el("g",{});
+world.appendChild(gLinks); world.appendChild(gCards);
+
+const allLinks = [];
+function reg(node, need){        // `need`: everyone who must be lit for this line to light
+  node.__need = need.filter(Boolean);
+  gLinks.appendChild(node); allLinks.push(node);
+}
+const cx = id => X[id] + CARD_W/2;
+const laneN = {};
+
+FAMS.forEach(f => {
+  const [a,b] = f.partners;
+  const far = !!(a && b) && Math.abs(cx(a) - cx(b)) > SLOT * 2.4;
+  const py = yOf(P[a || b].gen);
+  let anchor = (a && b) ? (cx(a) + cx(b))/2 : cx(a || b);
+  if (far && f.children.length){
+    const kc = f.children.map(cx);
+    const mid = (Math.min.apply(null,kc) + Math.max.apply(null,kc)) / 2;
+    anchor = Math.abs(cx(a)-mid) <= Math.abs(cx(b)-mid) ? cx(a) : cx(b);
+  }
+
+  if (a && b){
+    const midY = py + PHOTO_H/2;
+    if (!far){
+      reg(el("path",{class:"link marriage",
+        d:`M${Math.min(cx(a),cx(b))+CARD_W/2-1} ${midY} H${Math.max(cx(a),cx(b))-CARD_W/2+1}`}), [a,b]);
+    } else {
+      laneN[py] = (laneN[py] || 0) + 1;
+      const lane = py + CARD_H + 4 + laneN[py] * 7;
+      const l = Math.min(cx(a),cx(b)), r = Math.max(cx(a),cx(b));
+      reg(el("path",{class:"link marriage far",
+        d:`M${l} ${py+PHOTO_H} V${lane} H${r} V${py+PHOTO_H}`}), [a,b]);
+    }
+  }
+  if (!f.children.length) return;
+  const bus = py + CARD_H + 40;
+  const xs = f.children.map(cx).concat([anchor]);
+  reg(el("path",{class:"link",
+    d:`M${anchor} ${py + ((a&&b&&!far) ? PHOTO_H/2 : PHOTO_H)} V${bus} `+
+      `M${Math.min.apply(null,xs)} ${bus} H${Math.max.apply(null,xs)}`}),
+    [a || b]);
+  f.children.forEach(c => {
+    reg(el("path",{class:"link", d:`M${cx(c)} ${bus} V${yOf(P[c].gen)}`}), [c]);
+  });
+});
+
+const cardEls = {};
+Object.keys(P).forEach(id => {
+  const p = P[id], x = X[id], y = yOf(p.gen);
+  const g = el("g",{class:"card" + (p.unknown ? " unknown":""),
+    transform:`translate(${x},${y})`, tabindex:"0", role:"button",
+    "aria-label": p.name + (p.birth ? ", born " + p.birth : "")});
+  g.dataset.id = id;
+  g.appendChild(el("rect",{class:"plate",x:0,y:0,width:CARD_W,height:PHOTO_H}));
+  if (p.photo){
+    const im = el("image",{href:p.photo,x:1,y:1,width:CARD_W-2,height:PHOTO_H-2,
+      preserveAspectRatio:"xMidYMid slice"});
+    g.appendChild(im);
+  } else {
+    const t = el("text",{class:"mono",x:CARD_W/2,y:PHOTO_H/2});
+    t.textContent = p.unknown ? "?" :
+      p.name.split(" ").map(w=>w[0]).slice(0,2).join("");
+    g.appendChild(t);
+  }
+  if (p.self) g.appendChild(el("rect",{class:"selfmark",x:0,y:0,width:5,height:PHOTO_H}));
+
+  const words = p.name.split(" ");
+  let lines = [p.name];
+  if (p.name.length > 15 && words.length > 1){
+    const mid = Math.ceil(words.length/2);
+    lines = [words.slice(0,mid).join(" "), words.slice(mid).join(" ")];
+  }
+  lines.forEach((ln,i) => {
+    const t = el("text",{class:"nm",x:CARD_W/2,y:PHOTO_H+15+i*13});
+    t.textContent = ln; g.appendChild(t);
+  });
+  const span = [p.birth, p.death].filter(Boolean).join("–");
+  if (span){
+    const t = el("text",{class:"yr",x:CARD_W/2,y:PHOTO_H+16+lines.length*13});
+    t.textContent = span; g.appendChild(t);
+  }
+  cardEls[id] = g;
+  gCards.appendChild(g);
+});
+
+/* ── generation rail ────────────────────────────────────── */
+const AM = {6:"6-րդ սերունդ",5:"5-րդ սերունդ",4:"4-րդ սերունդ",
+            3:"3-րդ սերունդ",2:"2-րդ սերունդ",1:"1-ին սերունդ",0:"—"};
+const rail = document.getElementById("rail");
+const ticks = [];
+for (let g = MAXG; g >= MING; g--){
+  const d = document.createElement("div");
+  d.className = "gtick";
+  d.innerHTML = `<b>${g === 0 ? "·" : "GEN " + g}</b><s>${AM[g] || ""}</s>`;
+  d.dataset.y = yOf(g) + PHOTO_H/2;
+  rail.appendChild(d); ticks.push(d);
+}
+
+/* ── pan & zoom ─────────────────────────────────────────── */
+let vx = 0, vy = 0, vk = 1;
+function apply(){
+  world.setAttribute("transform",`translate(${vx},${vy}) scale(${vk})`);
+  ticks.forEach(t => {
+    const sy = (+t.dataset.y) * vk + vy;
+    t.style.top = sy + "px";
+    t.style.opacity = (sy > 60 && sy < innerHeight - 20) ? 1 : 0;
+  });
+}
+function bbox(){
+  const xs = Object.values(X), ys = Object.values(P).map(p => yOf(p.gen));
+  return {x0:Math.min.apply(null,xs)-40, x1:Math.max.apply(null,xs)+CARD_W+40,
+          y0:Math.min.apply(null,ys)-40, y1:Math.max.apply(null,ys)+CARD_H+40};
+}
+function fit(){
+  const b = bbox();
+  vk = Math.min(innerWidth/(b.x1-b.x0), (innerHeight-90)/(b.y1-b.y0));
+  vk = Math.max(0.04, Math.min(vk, 1));
+  vx = (innerWidth - (b.x1-b.x0)*vk)/2 - b.x0*vk;
+  vy = 78 - b.y0*vk;
+  apply();
+}
+function centreOn(id, k){
+  vk = k || Math.max(vk, 0.85);
+  const wide = innerWidth > 720;
+  vx = (wide ? (innerWidth - 400)/2 : innerWidth/2) - cx(id)*vk;
+  vy = (wide ? innerHeight/2 : innerHeight*0.24) - (yOf(P[id].gen)+PHOTO_H/2)*vk;
+  apply();
+}
+function zoomAt(f, px, py){
+  const k2 = Math.max(0.04, Math.min(3, vk*f));
+  vx = px - (px - vx) * (k2/vk); vy = py - (py - vy) * (k2/vk);
+  vk = k2; apply();
+}
+canvas.addEventListener("wheel", e => {
+  e.preventDefault();
+  zoomAt(Math.exp(-e.deltaY * 0.0016), e.clientX, e.clientY);
+}, {passive:false});
+
+const pts = new Map(); let last = null, moved = 0;
+canvas.addEventListener("pointerdown", e => {
+  pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  canvas.setPointerCapture(e.pointerId);
+  canvas.classList.add("drag"); moved = 0;
+  if (pts.size === 2) last = gap();
+});
+function gap(){
+  const [a,b] = [...pts.values()];
+  return {d:Math.hypot(a.x-b.x,a.y-b.y), x:(a.x+b.x)/2, y:(a.y+b.y)/2};
+}
+canvas.addEventListener("pointermove", e => {
+  const prev = pts.get(e.pointerId); if (!prev) return;
+  const dx = e.clientX - prev.x, dy = e.clientY - prev.y;
+  pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if (pts.size === 2){
+    const g = gap();
+    if (last){ zoomAt(g.d/last.d, g.x, g.y); vx += g.x-last.x; vy += g.y-last.y; apply(); }
+    last = g; return;
+  }
+  moved += Math.abs(dx)+Math.abs(dy);
+  vx += dx; vy += dy; apply();
+});
+["pointerup","pointercancel"].forEach(t => canvas.addEventListener(t, e => {
+  pts.delete(e.pointerId); if (pts.size < 2) last = null;
+  if (!pts.size) canvas.classList.remove("drag");
+}));
+
+/* ── lineage ────────────────────────────────────────────── */
+let lineageOn = false, current = null;
+function bloodline(id){
+  const set = new Set([id]), up = [id], down = [id];
+  while (up.length){ parentsOf(up.pop()).forEach(x => { if(!set.has(x)){set.add(x);up.push(x);} }); }
+  while (down.length){
+    const n = down.pop();
+    childrenOf(n).forEach(x => { if(!set.has(x)){set.add(x);down.push(x);} });
+  }
+  [...set].forEach(x => partnersOf(x).forEach(s => set.add(s)));
+  return set;
+}
+function paintLineage(){
+  world.classList.toggle("lineage", lineageOn && !!current);
+  Object.values(cardEls).forEach(c => c.classList.remove("lit"));
+  allLinks.forEach(l => l.classList.remove("lit"));
+  if (!(lineageOn && current)) return;
+  const set = bloodline(current);
+  set.forEach(id => { if (cardEls[id]) cardEls[id].classList.add("lit"); });
+  allLinks.forEach(l => {
+    if (l.__need.length && l.__need.every(x => set.has(x))) l.classList.add("lit");
+  });
+}
+function setLineage(on){
+  lineageOn = on;
+  document.getElementById("btn-lineage").setAttribute("aria-pressed", on);
+  document.getElementById("btn-lin2").textContent = on ? "Hide lineage" : "Show lineage";
+  paintLineage();
+}
+
+/* ── drawer ─────────────────────────────────────────────── */
+const drawer = document.getElementById("drawer");
+const dbody = document.getElementById("dbody");
+let editing = false, dirty = false;
+
+const GENLABEL = g => g === 0 ? "Household" :
+  `Generation ${g}` + (g === MAXG ? " · earliest recorded" : g === 1 ? " · youngest" : "");
+
+function chipRow(ids, none){
+  if (!ids.length) return `<span class="chip flat">${none}</span>`;
+  return ids.map(i => `<button class="chip" data-go="${i}">${P[i].name}${
+    P[i].birth ? ` <span style="color:var(--muted);font-family:var(--mono);font-size:11px">${P[i].birth}</span>`:""}</button>`).join("");
+}
+function esc(s){ return (s||"").replace(/[<>&"]/g, c => (
+  {"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"})[c]); }
+
+function open(id){
+  current = id;
+  const p = P[id];
+  document.getElementById("dname").textContent = p.name;
+  document.getElementById("dalt").textContent =
+    [p.alt ? "“" + p.alt + "”" : "", GENLABEL(p.gen)].filter(Boolean).join(" · ");
+  Object.values(cardEls).forEach(c => c.classList.remove("current"));
+  cardEls[id].classList.add("current");
+  editing = false;
+  render();
+  drawer.classList.add("open");
+  history.replaceState(null,"", "#/p/" + id);
+  paintLineage();
+}
+function render(){
+  const p = P[current];
+  if (editing){ renderEdit(p); return; }
+  const gal = p.gallery || [];
+  dbody.innerHTML = `
+    <div id="dportrait">${ p.photo
+        ? `<img src="${esc(p.photo)}" alt="Portrait of ${esc(p.name)}">`
+        : `<span>${p.unknown ? "?" : esc(p.name.split(" ").map(w=>w[0]).slice(0,2).join(""))}</span>`}</div>
+    <div class="sect">
+      <h3>Record</h3>
+      <dl class="kv">
+        <dt>Born</dt><dd>${esc(p.birth) || "—"}</dd>
+        <dt>Died</dt><dd>${esc(p.death) || "—"}</dd>
+        <dt>Places</dt><dd class="txt">${esc(p.places) || "—"}</dd>
+        <dt>Work</dt><dd class="txt">${esc(p.occupation) || "—"}</dd>
+      </dl>
+    </div>
+    ${p.bio ? `<div class="sect"><h3>Life</h3><p class="note">${esc(p.bio)}</p></div>` : ""}
+    ${p.note ? `<div class="sect"><h3>On the chart</h3><p class="note">${esc(p.note)}</p></div>` : ""}
+    <div class="sect"><h3>Parents</h3><div class="chips">${chipRow(parentsOf(current),"Not recorded")}</div></div>
+    <div class="sect"><h3>Married / partner</h3><div class="chips">${chipRow(partnersOf(current),"None recorded")}</div></div>
+    <div class="sect"><h3>Children</h3><div class="chips">${chipRow(childrenOf(current),"None recorded")}</div></div>
+    <div class="sect"><h3>Siblings</h3><div class="chips">${chipRow(siblingsOf(current),"None recorded")}</div></div>
+    <div class="sect"><h3>Photographs</h3>
+      ${ gal.length
+        ? `<div id="gallery">${gal.map(s=>`<img src="${esc(s)}" alt="" loading="lazy">`).join("")}</div>`
+        : `<div class="empty">Scan the album pages, drop the files into <code>photos/</code>,
+             then list them here as <code>"gallery": ["photos/${current}-1.jpg"]</code> —
+             or add them through <b>Edit details</b>.</div>`}
+    </div>`;
+}
+function renderEdit(p){
+  const f = (k,l,ta) => ta
+    ? `<div class="field"><label for="e-${k}">${l}</label><textarea id="e-${k}">${esc(p[k])}</textarea></div>`
+    : `<div class="field"><label for="e-${k}">${l}</label><input id="e-${k}" value="${esc(p[k])}"></div>`;
+  dbody.innerHTML = `<p class="note" style="margin-top:0">Edits stay in this browser session.
+    When you're done, press <b>Download data.js</b> in the top bar and replace the file.</p>`
+    + f("name","Name") + f("alt","Also known as") + f("birth","Born")
+    + f("death","Died") + f("places","Places") + f("occupation","Work")
+    + f("photo","Portrait file (e.g. photos/"+current+".jpg)")
+    + f("gallery_","Photo files, comma separated")
+    + f("bio","Life",true);
+  document.getElementById("e-gallery_").value = (p.gallery||[]).join(", ");
+}
+function commitEdit(){
+  const p = P[current], get = k => document.getElementById("e-"+k).value.trim();
+  ["name","alt","birth","death","places","occupation","photo","bio"].forEach(k => {
+    const v = get(k); if (v) p[k] = v; else delete p[k];
+  });
+  const g = get("gallery_");
+  if (g) p.gallery = g.split(",").map(s=>s.trim()).filter(Boolean); else delete p.gallery;
+  dirty = true;
+  document.getElementById("btn-save").style.display = "";
+  toast("Saved for this session");
+}
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("on");
+  clearTimeout(toast._t); toast._t = setTimeout(()=>t.classList.remove("on"), 2200);
+}
+function close(){
+  drawer.classList.remove("open");
+  Object.values(cardEls).forEach(c => c.classList.remove("current"));
+  current = null; setLineage(false);
+  history.replaceState(null,"", location.pathname + location.search);
+}
+
+/* ── events ─────────────────────────────────────────────── */
+gCards.addEventListener("click", e => {
+  const g = e.target.closest(".card"); if (!g || moved > 6) return;
+  open(g.dataset.id);
+});
+gCards.addEventListener("keydown", e => {
+  if (e.key !== "Enter" && e.key !== " ") return;
+  const g = e.target.closest(".card"); if (!g) return;
+  e.preventDefault(); open(g.dataset.id); centreOn(g.dataset.id);
+});
+dbody.addEventListener("click", e => {
+  const b = e.target.closest("[data-go]"); if (!b) return;
+  open(b.dataset.go); centreOn(b.dataset.go);
+});
+document.getElementById("dclose").onclick = close;
+document.getElementById("btn-edit").onclick = function(){
+  if (editing){ commitEdit(); editing = false; this.textContent = "Edit details"; }
+  else { editing = true; this.textContent = "Save details"; }
+  render();
+};
+document.getElementById("btn-lin2").onclick = () => setLineage(!lineageOn);
+document.getElementById("btn-lineage").onclick = () => {
+  if (!current){ toast("Open a person first"); return; }
+  setLineage(!lineageOn);
+};
+document.getElementById("btn-fit").onclick = fit;
+document.getElementById("btn-in").onclick  = () => zoomAt(1.3, innerWidth/2, innerHeight/2);
+document.getElementById("btn-out").onclick = () => zoomAt(1/1.3, innerWidth/2, innerHeight/2);
+document.getElementById("btn-save").onclick = () => {
+  const blob = new Blob(["window.FAMILY = " + JSON.stringify(D, null, 1) + ";\n"],
+    {type:"text/javascript"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = "data.js"; a.click();
+  URL.revokeObjectURL(a.href);
+};
+
+/* search */
+const search = document.getElementById("search"), results = document.getElementById("results");
+search.addEventListener("input", () => {
+  const q = search.value.trim().toLowerCase();
+  if (q.length < 2){ results.classList.remove("on"); search.setAttribute("aria-expanded","false"); return; }
+  const hits = Object.values(P)
+    .filter(p => (p.name + " " + (p.alt||"")).toLowerCase().includes(q))
+    .slice(0, 40);
+  results.innerHTML = hits.length
+    ? hits.map(p => `<button data-go2="${p.id}">${esc(p.name)}<i>${
+        [p.alt, p.birth, "gen " + p.gen].filter(Boolean).join(" · ")}</i></button>`).join("")
+    : `<button disabled style="color:var(--muted)">No one by that name</button>`;
+  results.classList.add("on"); search.setAttribute("aria-expanded","true");
+});
+results.addEventListener("click", e => {
+  const b = e.target.closest("[data-go2]"); if (!b) return;
+  results.classList.remove("on"); search.value = "";
+  open(b.dataset.go2); centreOn(b.dataset.go2);
+});
+document.addEventListener("click", e => {
+  if (!e.target.closest("#searchwrap")) results.classList.remove("on");
+});
+
+/* index overlay */
+const indexEl = document.getElementById("index");
+document.getElementById("btn-index").onclick = () => {
+  if (!indexEl.dataset.built){
+    let html = "";
+    for (let g = MAXG; g >= MING; g--){
+      const list = Object.values(P).filter(p => p.gen === g)
+        .sort((a,b) => a.name.localeCompare(b.name));
+      if (!list.length) continue;
+      html += `<div class="gengroup"><h3>${GENLABEL(g)} — ${list.length} people</h3><ul>`
+        + list.map(p => `<li><button data-go3="${p.id}">${esc(p.name)}${
+            p.birth ? `<em>${p.birth}</em>` : ""}</button></li>`).join("")
+        + `</ul></div>`;
+    }
+    document.getElementById("indexbody").innerHTML = html;
+    indexEl.dataset.built = "1";
+  }
+  indexEl.classList.toggle("open");
+};
+indexEl.addEventListener("click", e => {
+  const b = e.target.closest("[data-go3]"); if (!b) return;
+  indexEl.classList.remove("open");
+  open(b.dataset.go3); centreOn(b.dataset.go3);
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape"){
+    if (indexEl.classList.contains("open")) indexEl.classList.remove("open");
+    else if (drawer.classList.contains("open")) close();
+  }
+  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+  if (e.key === "/"){ e.preventDefault(); search.focus(); }
+});
+addEventListener("resize", () => apply());
+
+/* boot */
+fit();
+const m = location.hash.match(/#\/p\/(.+)/);
+if (m && P[m[1]]){ open(m[1]); centreOn(m[1]); }
+else {
+  const me = Object.values(P).find(p => p.self);
+  if (me) centreOn(me.id, 0.34);
+}
+})();
+</script>
+</body>
+</html>
